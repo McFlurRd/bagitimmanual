@@ -86,10 +86,11 @@
       margin: 5px 0;
       background: #ddd;
       border-radius: 6px;
-      cursor: grab;
+      cursor: pointer;
     }
-    .dragging {
-      opacity: 0.5;
+    .selected {
+      background: #90ee90 !important;
+      border: 2px solid #2d6a4f;
     }
     .team-logo {
       width: 120px;
@@ -120,7 +121,7 @@
   <div id="result" style="display:none;">
     <img src="fun.jpeg" alt="Logo" class="team-logo">
     <h2>Hasil Pembagian Tim</h2>
-    <p><i>(Drag & drop nama pemain untuk tukar antar tim)</i></p>
+    <p><i>(Klik 2 nama pemain untuk menukar posisi mereka)</i></p>
 
     <div class="teams-container top">
       <div class="team-card"><h3>Tim A</h3><ul id="team-A"></ul></div>
@@ -138,6 +139,7 @@
     let currentTeamIndex = 0;
     const teamNames = ["A", "B", "C", "D", "E"];
     let teams = { A: [], B: [], C: [], D: [], E: [] };
+    let firstSelected = null;
 
     function saveNames() {
       const text = document.getElementById("playerNames").value.trim();
@@ -157,7 +159,7 @@
     function renderChecklist() {
       const checklistDiv = document.getElementById("checklist");
       checklistDiv.innerHTML = "";
-      players.forEach((p, i) => {
+      players.forEach((p) => {
         if (!Object.values(teams).flat().includes(p)) {
           const label = document.createElement("label");
           label.innerHTML = `<input type="checkbox" value="${p}"> ${p}`;
@@ -191,75 +193,32 @@
         teams[t].forEach(p => {
           const li = document.createElement("li");
           li.innerText = p;
-          li.draggable = true;
+          li.addEventListener("click", () => selectPlayer(t, p, li));
           ul.appendChild(li);
         });
       }
-      enableDragDrop();
     }
 
-    function enableDragDrop() {
-      const draggables = document.querySelectorAll("li[draggable=true]");
-      const containers = document.querySelectorAll(".team-card ul");
+    function selectPlayer(team, player, element) {
+      if (!firstSelected) {
+        firstSelected = { team, player, element };
+        element.classList.add("selected");
+      } else {
+        // swap kedua pemain
+        const secondSelected = { team, player, element };
 
-      draggables.forEach(li => {
-        li.addEventListener("dragstart", (e) => {
-          li.classList.add("dragging");
-          e.dataTransfer.setData("player", li.innerText);
-          e.dataTransfer.setData("fromTeam", li.parentElement.id.split("-")[1]);
-        });
+        const idx1 = teams[firstSelected.team].indexOf(firstSelected.player);
+        const idx2 = teams[secondSelected.team].indexOf(secondSelected.player);
 
-        li.addEventListener("dragend", () => {
-          li.classList.remove("dragging");
-        });
+        if (idx1 !== -1 && idx2 !== -1) {
+          [teams[firstSelected.team][idx1], teams[secondSelected.team][idx2]] =
+          [teams[secondSelected.team][idx2], teams[firstSelected.team][idx1]];
+        }
 
-        // swap antar pemain
-        li.addEventListener("dragover", (e) => {
-          e.preventDefault();
-          li.style.background = "#ffe0e0";
-        });
-
-        li.addEventListener("dragleave", () => {
-          li.style.background = "";
-        });
-
-        li.addEventListener("drop", (e) => {
-          e.preventDefault();
-          li.style.background = "";
-
-          const fromPlayer = e.dataTransfer.getData("player");
-          const fromTeam = e.dataTransfer.getData("fromTeam");
-          const toPlayer = li.innerText;
-          const toTeam = li.parentElement.id.split("-")[1];
-
-          if (fromTeam === toTeam && fromPlayer === toPlayer) return;
-
-          // swap
-          teams[fromTeam] = teams[fromTeam].map(p => p === fromPlayer ? toPlayer : p);
-          teams[toTeam] = teams[toTeam].map(p => p === toPlayer ? fromPlayer : p);
-
-          showResult();
-        });
-      });
-
-      containers.forEach(ul => {
-        ul.addEventListener("dragover", (e) => e.preventDefault());
-
-        ul.addEventListener("drop", (e) => {
-          e.preventDefault();
-          const player = e.dataTransfer.getData("player");
-          const fromTeam = e.dataTransfer.getData("fromTeam");
-          const toTeam = ul.id.split("-")[1];
-
-          if (fromTeam === toTeam) return;
-          if (teams[toTeam].length >= 5) return;
-
-          teams[fromTeam] = teams[fromTeam].filter(p => p !== player);
-          teams[toTeam].push(player);
-
-          showResult();
-        });
-      });
+        firstSelected.element.classList.remove("selected");
+        firstSelected = null;
+        showResult();
+      }
     }
   </script>
 
